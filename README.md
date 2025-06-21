@@ -4,6 +4,9 @@
 This project implements a full-stack web application that classifies music genres from uploaded audio files. It uses a Convolutional Neural Network (CNN) trained with TensorFlow/Keras, integrated into a Django backend for robust audio processing and prediction serving. The frontend offers a clean, responsive interface for users to upload audio and receive real-time genre predictions.
 
 ---
+##  🎬 Demo
+
+https://github.com/user-attachments/assets/034f2cca-88e1-475a-a9f3-368cdd538c07
 
 ## ✨ Features
 - **Audio File Upload**: Supports `.wav`, `.mp3`, `.flac`, `.ogg`.
