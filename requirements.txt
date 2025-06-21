@@ -1,0 +1,9 @@
+Django==4.2.11
+tensorflow==2.15.0 # Compatible with Python 3.11
+numpy==1.26.4      # Compatible with TensorFlow 2.15
+librosa
+scikit-learn
+pandas
+tqdm
+matplotlib
+seaborn

@@ -1,0 +1,42 @@
+    # Python
+    __pycache__/
+    *.pyc
+    *.pyo
+*.pyd
+.Python/
+env/
+venv/
+*/M_genre_classifier  # Your virtual environment folder
+    bin/
+    lib/
+    include/
+    share/
+    .ipynb_checkpoints/ # Jupyter Notebook checkpoints
+    .vscode/ # VS Code settings (optional, can be included if collaborative)
+    .history/ # VS Code local history
+    *.log
+    *.pot
+    *.egg-info/
+    .installed.cfg
+    pip-log.txt
+    .cache/
+    .pytest_cache/
+    .coverage
+    .tox/
+    .mypy_cache/
+
+    # Django
+    db.sqlite3 # Your SQLite database file
+    /media/    # Directory for uploaded media files (e.g., audio files)
+    /static_cdn/ # Collected static files in production
+    .env # Environment variables file
+
+    # Machine Learning / Data
+    *.npy      # Generated spectrograms
+    data/      # If 'data' folder contains generated features, not raw audio
+    # saved_music_genre_model/ # If you were saving TF SavedModels
+    # web_model/ # Converted TF.js model files (if you switched back to that)
+
+    # Large model files - IMPORTANT! Read below before including
+    # Genre-Classifier.h5 # <--- UNCOMMENT THIS LINE ONLY IF YOUR MODEL IS >100MB
+    

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Genre Classifier</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: #ffffff;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 0.75rem; /* rounded-lg */
+            padding: 2.5rem; /* p-10 */
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem; /* space-y-6 */
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6; /* Blue-600 */
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        .file-input-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #edf2f7; /* gray-200 */
+            border: 2px dashed #cbd5e0; /* gray-400 */
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            color: #4a5568; /* gray-700 */
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .file-input-display:hover {
+            background-color: #e2e8f0; /* gray-300 */
+        }
+        .file-input-display .placeholder {
+            flex-grow: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .file-input-display .icon {
+            margin-right: 0.5rem;
+            color: #60a5fa; /* blue-400 */
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-extrabold text-center text-gray-900 mb-4">Music Genre Classifier</h1>
+
+        <p class="text-gray-700 text-center">
+            Upload an audio file (e.g., MP3 or WAV) and get its predicted music genre.
+        </p>
+
+        <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'classifier_app:upload_predict' %}" class="space-y-4">
+            {% csrf_token %} {# Django's CSRF token for security #}
+            <div class="file-input-wrapper">
+                <input type="file" id="audioFileInput" name="audio_file" accept="audio/*" required>
+                <div class="file-input-display">
+                    <span class="icon">&#128266;</span> <!-- Speaker icon -->
+                    <span id="fileNameDisplay" class="placeholder">Choose an audio file...</span>
+                    <span class="text-blue-500 font-semibold ml-2">Browse</span>
+                </div>
+            </div>
+
+            <div class="flex justify-center">
+                <button type="submit" id="classifyButton"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg
+                               shadow-md hover:shadow-lg transition duration-300 ease-in-out
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+                        disabled>
+                    Classify Genre
+                </button>
+            </div>
+        </form>
+
+        <div id="loading" class="hidden flex justify-center items-center mt-4 space-x-2">
+            <div class="loading-spinner"></div>
+            <p class="text-blue-600 font-semibold">Uploading and classifying...</p>
+        </div>
+
+        <div id="result" class="hidden mt-6 bg-green-50 p-6 rounded-lg border border-green-200 shadow-sm">
+            <h2 class="text-xl font-semibold text-green-800 mb-3 text-center">Predicted Genre:</h2>
+            <p id="predicted_genre" class="text-3xl font-extrabold text-green-700 text-center mb-1"></p>
+            <p id="confidence" class="text-xl text-green-600 text-center"></p>
+        </div>
+
+        <div id="error_message" class="hidden mt-6 bg-red-50 p-6 rounded-lg border border-red-200 shadow-sm">
+            <h2 class="text-xl font-semibold text-red-800 mb-3 text-center">Error:</h2>
+            <p id="error_text" class="text-red-700 text-center text-base"></p>
+        </div>
+    </div>
+
+    <script>
+        const audioFileInput = document.getElementById('audioFileInput');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const classifyButton = document.getElementById('classifyButton');
+        const uploadForm = document.getElementById('uploadForm');
+        const loadingDiv = document.getElementById('loading');
+        const resultDiv = document.getElementById('result');
+        const predictedGenreText = document.getElementById('predicted_genre');
+        const confidenceText = document.getElementById('confidence');
+        const errorMessageDiv = document.getElementById('error_message');
+        const errorText = document.getElementById('error_text');
+
+        // --- UI Helper Functions ---
+
+        function displayLoading(message = "Uploading and classifying...") {
+            hideAllMessages();
+            loadingDiv.classList.remove('hidden');
+            loadingDiv.classList.add('flex');
+            loadingDiv.querySelector('p').textContent = message;
+        }
+
+        function displayResult(genre, confidence) {
+            hideAllMessages();
+            predictedGenreText.textContent = genre;
+            confidenceText.textContent = `Confidence: ${confidence.toFixed(2)}%`;
+            resultDiv.classList.remove('hidden');
+            resultDiv.classList.add('block');
+        }
+
+        function displayError(message) {
+            hideAllMessages();
+            errorMessageDiv.classList.remove('hidden');
+            errorMessageDiv.classList.add('block');
+            errorText.textContent = message;
+        }
+
+        function hideAllMessages() {
+            loadingDiv.classList.add('hidden');
+            resultDiv.classList.add('hidden');
+            errorMessageDiv.classList.add('hidden');
+        }
+
+        function setClassifyButtonState(enabled) {
+            classifyButton.disabled = !enabled;
+            if (enabled) {
+                classifyButton.classList.remove('opacity-60', 'cursor-not-allowed');
+            } else {
+                classifyButton.classList.add('opacity-60', 'cursor-not-allowed');
+            }
+        }
+
+        // --- Event Listeners ---
+
+        audioFileInput.addEventListener('change', (event) => {
+            hideAllMessages();
+            const file = event.target.files[0];
+            if (file) {
+                fileNameDisplay.textContent = file.name;
+                setClassifyButtonState(true); // Enable button if a file is selected
+            } else {
+                fileNameDisplay.textContent = 'Choose an audio file...';
+                setClassifyButtonState(false); // Disable button if no file
+            }
+        });
+
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent default form submission
+
+            const file = audioFileInput.files[0];
+            if (!file) {
+                displayError('Please select an audio file first.');
+                return;
+            }
+
+            displayLoading();
+            setClassifyButtonState(false); // Disable button during upload/classification
+
+            const formData = new FormData();
+            formData.append('audio_file', file);
+
+            try {
+                // Submit the form data to the Django backend
+                const response = await fetch(uploadForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    // Django's CSRF is handled by {% csrf_token %} in the form,
+                    // so no explicit headers are needed here for simple form submission
+                });
+
+                const data = await response.json(); // Parse the JSON response
+
+                if (response.ok) { // Check if the HTTP response was successful (status 2xx)
+                    if (data.success) {
+                        displayResult(data.predicted_genre, data.confidence);
+                    } else {
+                        displayError(data.error || 'Unknown error occurred.');
+                    }
+                } else {
+                    // Handle non-2xx responses (e.g., 400, 500)
+                    displayError(data.error || `Server error: ${response.status} ${response.statusText}`);
+                }
+
+            } catch (err) {
+                console.error('Error during file upload or prediction:', err);
+                displayError('An unexpected error occurred. Please try again. Details: ' + err.message);
+            } finally {
+                setClassifyButtonState(true); // Re-enable button
+            }
+        });
+
+        // Initial state
+        document.addEventListener('DOMContentLoaded', () => {
+            setClassifyButtonState(false); // Button disabled initially until file is chosen
+        });
+    </script>
+</body>
+</html>
